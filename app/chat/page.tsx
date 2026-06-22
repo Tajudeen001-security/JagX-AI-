@@ -1,68 +1,90 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { useUser } from '@supabase/auth-helpers-react';
+import { createBrowserClient } from '@supabase/ssr';
+import { useRouter } from 'next/navigation';
 
 export default function Chat() {
-  const user = useUser();
+  const router = useRouter();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) router.push('/login');
+      else setUser(data.user);
+    });
+  }, [router]);
 
   const sendMessage = async () => {
     if (!input.trim() || !user) return;
 
-    const newMessages = [...messages, { role: 'user', content: input }];
-    setMessages(newMessages);
+    const userMessage = { role: 'user', content: input };
+    setMessages(prev => [...prev, userMessage]);
+    const currentInput = input;
     setInput('');
     setLoading(true);
 
-    // Grok-like mock response (no API key needed)
+    // Mock Grok-style response (can be improved later)
     setTimeout(() => {
-      const responses = [
-        "Here's a complete solution:\n\n```tsx\n// Your code here\n```",
-        "Thinking step by step... This is how you can implement it.",
-        "Great question! Let me give you a detailed answer with examples.",
+      const mockResponses = [
+        `Understood! Here's a solid implementation for your request:\n\n\`\`\`tsx\n// Example component based on: ${currentInput}\nfunction Example() {\n  return <div>JagX AI Result</div>;\n}\n\`\`\``,
+        "Thinking step-by-step... This is a great question. Here's the detailed answer with code examples.",
+        "Here's my best response as your coding agent:\n\n" + currentInput.split(' ').slice(0, 8).join(' ') + " can be solved using modern React patterns."
       ];
-      const reply = responses[Math.floor(Math.random() * responses.length)] + "\n\n" + input;
+      const reply = mockResponses[Math.floor(Math.random() * mockResponses.length)];
       setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
       setLoading(false);
-    }, 1200);
+    }, 1100);
   };
 
   return (
     <div className="h-screen flex flex-col bg-zinc-950">
-      <div className="border-b border-zinc-800 p-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">JagX AI Chat</h1>
-        <div className="text-sm text-zinc-400">Grok-style • No key needed</div>
+      <div className="border-b border-zinc-800 p-4 flex items-center justify-between bg-zinc-900">
+        <h1 className="text-2xl font-semibold">JagX AI • Grok Mode</h1>
+        <div className="text-xs text-emerald-400">No API Key • Mock Intelligence</div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="flex-1 overflow-auto p-6 space-y-8">
         {messages.length === 0 && (
           <div className="text-center text-zinc-500 mt-20">
-            Ask anything — coding, questions, ideas
+            Ask anything — coding, debugging, explanations, or ideas.
           </div>
         )}
         {messages.map((msg, i) => (
-          <div key={i} className={`max-w-3xl ${msg.role === 'user' ? 'ml-auto bg-zinc-800' : 'mr-auto bg-zinc-900'} p-5 rounded-3xl`}>
-            <ReactMarkdown className="prose prose-invert max-w-none">{msg.content}</ReactMarkdown>
+          <div key={i} className={`max-w-3xl ${msg.role === 'user' ? 'ml-auto bg-zinc-800' : 'mr-auto bg-zinc-900'} p-6 rounded-3xl`}>
+            <ReactMarkdown className="prose prose-invert max-w-none text-sm leading-relaxed">
+              {msg.content}
+            </ReactMarkdown>
           </div>
         ))}
-        {loading && <div className="text-zinc-500">Thinking...</div>}
+        {loading && <div className="text-zinc-400">JagX is thinking...</div>}
       </div>
 
-      <div className="p-4 border-t border-zinc-800">
+      <div className="p-4 border-t border-zinc-800 bg-zinc-900">
         <div className="max-w-3xl mx-auto flex gap-3">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder="Ask JagX AI anything..."
-            className="flex-1 bg-zinc-900 border border-zinc-700 rounded-2xl px-6 py-4 focus:outline-none"
+            placeholder="Ask JagX AI anything (coding, questions...)"
+            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-2xl px-6 py-4 focus:outline-none placeholder:text-zinc-500"
           />
-          <button onClick={sendMessage} disabled={loading} className="bg-white text-black px-8 rounded-2xl font-medium">Send</button>
+          <button 
+            onClick={sendMessage} 
+            disabled={loading || !input.trim()} 
+            className="bg-white text-black px-10 rounded-2xl font-medium disabled:opacity-50"
+          >
+            Send
+          </button>
         </div>
       </div>
     </div>
   );
-            }
+                                             }
